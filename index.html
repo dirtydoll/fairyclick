@@ -3,47 +3,115 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fairyclick</title>
+    <title>Fairy Glow Clicker</title>
     <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="game" aria-label="Fairyclick game">
-        <div class="hud">
-          <div>
-            <p class="label">Glow</p>
-            <p class="score" id="score">0</p>
-          </div>
-          <div>
-            <p class="label">Per Click</p>
-            <p class="score small" id="power">1</p>
-          </div>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Fairy Glow Clicker</p>
+          <h1>Fairy Glow Clicker</h1>
         </div>
+        <p class="topbar-note">Saves locally in your browser.</p>
+      </header>
 
-        <button class="fairy-button" id="fairyButton" type="button" aria-label="Gather glow">
-          <span class="wings"></span>
-          <span class="core"></span>
-          <span class="spark spark-one"></span>
-          <span class="spark spark-two"></span>
-          <span class="spark spark-three"></span>
-        </button>
+      <div class="layout">
+        <section class="panel scene-panel" aria-label="Garden and clicker">
+          <div class="scene-meta">
+            <div>
+              <p class="scene-label">Garden stage</p>
+              <p class="scene-name" id="gardenStageName">Empty Meadow</p>
+            </div>
+            <p class="scene-range" id="gardenStageRange">0 - 100 Glow</p>
+          </div>
 
-        <div class="actions">
-          <button id="upgradeButton" type="button">
-            Upgrade wand
-            <span id="upgradeCost">25 glow</span>
-          </button>
-          <button id="gardenButton" type="button">
-            Plant moonflower
-            <span id="gardenCost">120 glow</span>
-          </button>
-        </div>
+          <div class="garden-stage stage-1" id="gardenScene">
+            <button class="fairy-button" id="fairyButton" type="button" aria-label="Gather glow">
+              <span class="wings"></span>
+              <span class="core"></span>
+              <span class="spark spark-one"></span>
+              <span class="spark spark-two"></span>
+              <span class="spark spark-three"></span>
+            </button>
+          </div>
 
-        <p class="status" id="status">Click the fairy light to gather glow.</p>
-      </section>
+          <p class="status" id="status">Click the fairy light to gather Glow.</p>
+        </section>
+
+        <aside class="sidebar">
+          <section class="panel stats-panel">
+            <h2>Statistics</h2>
+            <dl class="stats-grid">
+              <div>
+                <dt>Glow</dt>
+                <dd id="statGlow">0</dd>
+              </div>
+              <div>
+                <dt>Glow/sec</dt>
+                <dd id="statGlowPerSec">0</dd>
+              </div>
+              <div>
+                <dt>Click power</dt>
+                <dd id="statClickPower">1</dd>
+              </div>
+              <div>
+                <dt>Fairy Helpers</dt>
+                <dd id="statFairyHelpers">0</dd>
+              </div>
+              <div>
+                <dt>Stardust</dt>
+                <dd id="statStardust">0</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="panel wand-panel">
+            <h2>Wand</h2>
+            <p class="panel-copy">Upgrade the wand to raise click power. The cost scales with every upgrade.</p>
+            <button id="wandButton" type="button">
+              Upgrade wand
+              <span id="wandCost">25 Glow</span>
+            </button>
+          </section>
+
+          <section class="panel shop-panel">
+            <h2>Buildings</h2>
+            <div id="buildingList" class="shop-list"></div>
+          </section>
+
+          <section class="panel helper-panel">
+            <h2>Fairy Helper</h2>
+            <p class="panel-copy">+1 automatic click per second. Each helper uses your current click power.</p>
+            <div class="helper-row">
+              <button id="helperButton" type="button">
+                Hire Fairy Helper
+                <span id="helperCost">1000 Glow</span>
+              </button>
+              <p class="helper-count"><span id="helperCount">0</span> hired</p>
+            </div>
+          </section>
+
+          <section class="panel achievements-panel">
+            <h2>Achievements</h2>
+            <div id="achievementList" class="achievement-list"></div>
+          </section>
+
+          <section class="panel prestige-panel">
+            <h2>Prestige</h2>
+            <p id="prestigeInfo">Reach 100,000 total Glow earned to unlock Stardust.</p>
+            <p id="playTimeInfo" class="panel-copy"></p>
+            <button id="prestigeButton" type="button" hidden>Prestige</button>
+          </section>
+
+          <section class="panel log-panel">
+            <h2>Event Log</h2>
+            <ol id="eventLog" class="event-log"></ol>
+          </section>
+        </aside>
+      </div>
     </main>
 
     <script src="src/main.js"></script>
   </body>
 </html>
-
