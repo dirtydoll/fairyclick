@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fairyclick</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="game" aria-label="Fairyclick game">
+        <div class="hud">
+          <div>
+            <p class="label">Glow</p>
+            <p class="score" id="score">0</p>
+          </div>
+          <div>
+            <p class="label">Per Click</p>
+            <p class="score small" id="power">1</p>
+          </div>
+        </div>
+
+        <button class="fairy-button" id="fairyButton" type="button" aria-label="Gather glow">
+          <span class="wings"></span>
+          <span class="core"></span>
+          <span class="spark spark-one"></span>
+          <span class="spark spark-two"></span>
+          <span class="spark spark-three"></span>
+        </button>
+
+        <div class="actions">
+          <button id="upgradeButton" type="button">
+            Upgrade wand
+            <span id="upgradeCost">25 glow</span>
+          </button>
+          <button id="gardenButton" type="button">
+            Plant moonflower
+            <span id="gardenCost">120 glow</span>
+          </button>
+        </div>
+
+        <p class="status" id="status">Click the fairy light to gather glow.</p>
+      </section>
+    </main>
+
+    <script src="src/main.js"></script>
+  </body>
+</html>
+
