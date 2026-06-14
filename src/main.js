@@ -635,6 +635,10 @@ function applyOfflineProgress() {
 
   const startTimestamp = now - offlineMs;
   const result = getOfflineIncome(startTimestamp, now);
+  if (offlineMs > 0) {
+    result.gained = Math.max(1, result.gained);
+  }
+
   if (result.gained > 0) {
     addGlow(result.gained);
   }
