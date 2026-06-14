@@ -1,6 +1,7 @@
 const STORAGE_KEY = "fairyclick-save";
 const PRESTIGE_THRESHOLD = 100000;
 const STARDUST_PER_GLOW = 100000;
+const OFFLINE_LIMIT_SECONDS = 8 * 60 * 60;
 const WAND_BASE_COST = 25;
 const WAND_GROWTH = 1.75;
 const HELPER_BASE_COST = 1000;
@@ -11,24 +12,33 @@ const buildings = [
     key: "sunflowers",
     name: "Sunflower",
     baseCost: 100,
-    income: 5,
+    baseIncome: 5,
     growth: 1.18,
+    dayMultiplier: 2,
+    nightMultiplier: 0.5,
+    icon: "☀️",
     description: "A sunny bloom that produces Glow.",
   },
   {
     key: "moonflowers",
     name: "Moonflower",
     baseCost: 500,
-    income: 20,
+    baseIncome: 20,
     growth: 1.22,
+    dayMultiplier: 0.5,
+    nightMultiplier: 2,
+    icon: "🌙",
     description: "A nocturnal bloom that gently boosts the garden.",
   },
   {
     key: "crystalTrees",
     name: "Crystal Tree",
     baseCost: 5000,
-    income: 100,
+    baseIncome: 100,
     growth: 1.26,
+    dayMultiplier: 1,
+    nightMultiplier: 1,
+    icon: "✨",
     description: "An ancient tree filled with magic.",
   },
 ];
@@ -85,6 +95,7 @@ const defaultState = () => ({
   achievements: [],
   stardust: 0,
   playTime: 0,
+  lastPlayedAt: Date.now(),
   eventLog: [],
 });
 
@@ -94,6 +105,7 @@ const dom = {
   statClickPower: document.querySelector("#statClickPower"),
   statFairyHelpers: document.querySelector("#statFairyHelpers"),
   statStardust: document.querySelector("#statStardust"),
+  cycleDisplay: document.querySelector("#cycleDisplay"),
   fairyButton: document.querySelector("#fairyButton"),
   gardenScene: document.querySelector("#gardenScene"),
   gardenStageName: document.querySelector("#gardenStageName"),
@@ -110,11 +122,17 @@ const dom = {
   prestigeInfo: document.querySelector("#prestigeInfo"),
   playTimeInfo: document.querySelector("#playTimeInfo"),
   eventLog: document.querySelector("#eventLog"),
+  offlineModal: document.querySelector("#offlineModal"),
+  offlineGlow: document.querySelector("#offlineGlow"),
+  offlineDuration: document.querySelector("#offlineDuration"),
+  offlineClaimButton: document.querySelector("#offlineClaimButton"),
 };
 
 let state = loadState();
 let lastTick = performance.now();
+let lastCycleId = getCycleInfo().id;
 let saveAvailable = true;
+let offlineReward = null;
 const buildingNodes = {};
 const achievementNodes = {};
 
@@ -134,6 +152,15 @@ function formatAmount(value) {
   }).format(Number(value) || 0);
 }
 
+function formatMultiplier(value) {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+}
+
+function pluralize(count, singular, plural) {
+  return count === 1 ? singular : plural;
+}
+
 function formatDuration(seconds) {
   const total = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(total / 3600);
@@ -146,6 +173,53 @@ function formatDuration(seconds) {
     return `${minutes}m ${secs}s`;
   }
   return `${secs}s`;
+}
+
+function formatLongDuration(seconds) {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const parts = [];
+  if (hours > 0) {
+    parts.push(`${hours} ${pluralize(hours, "hour", "hours")}`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes} ${pluralize(minutes, "minute", "minutes")}`);
+  }
+  return parts.join(" ");
+}
+
+function getCurrentTimestamp() {
+  return Date.now();
+}
+
+function getCycleInfo(timestamp = getCurrentTimestamp()) {
+  const hour = new Date(timestamp).getHours();
+  const isDay = hour >= 10 && hour < 22;
+  return {
+    id: isDay ? "day" : "night",
+    isDay,
+    label: isDay ? "☀️ Day" : "🌙 Night",
+    themeClass: isDay ? "day-theme" : "night-theme",
+  };
+}
+
+function getNextCycleBoundary(timestamp) {
+  const cycle = getCycleInfo(timestamp);
+  const next = new Date(timestamp);
+  if (cycle.isDay) {
+    next.setHours(22, 0, 0, 0);
+  } else if (next.getHours() >= 22) {
+    next.setDate(next.getDate() + 1);
+    next.setHours(10, 0, 0, 0);
+  } else {
+    next.setHours(10, 0, 0, 0);
+  }
+  if (next.getTime() <= timestamp) {
+    next.setDate(next.getDate() + 1);
+    next.setHours(10, 0, 0, 0);
+  }
+  return next.getTime();
 }
 
 function loadState() {
@@ -172,6 +246,7 @@ function loadState() {
       achievements: achievementIds,
       stardust: integer(saved.stardust ?? base.stardust),
       playTime: number(saved.playTime ?? base.playTime),
+      lastPlayedAt: number(saved.lastPlayedAt ?? base.lastPlayedAt),
       eventLog: Array.isArray(saved.eventLog)
         ? saved.eventLog.map((entry) => String(entry?.text ?? entry)).filter(Boolean).slice(-20)
         : base.eventLog,
@@ -185,6 +260,8 @@ function saveState() {
   if (!saveAvailable) {
     return;
   }
+
+  state.lastPlayedAt = getCurrentTimestamp();
 
   try {
     localStorage.setItem(
@@ -200,6 +277,7 @@ function saveState() {
         achievements: state.achievements,
         stardust: state.stardust,
         playTime: state.playTime,
+        lastPlayedAt: state.lastPlayedAt,
         eventLog: state.eventLog.slice(-20),
       })
     );
@@ -236,18 +314,44 @@ function getHelperCost() {
   return Math.ceil(HELPER_BASE_COST * HELPER_GROWTH ** state.fairyHelpers);
 }
 
-function getBasePassivePerSec() {
-  return buildings.reduce((sum, building) => sum + getBuildingCount(building.key) * building.income, 0);
+function getBuildingCycleProfile(building, cycle = getCycleInfo()) {
+  if (typeof building.cycleRule === "function") {
+    return building.cycleRule(cycle, building);
+  }
+
+  const multiplier = cycle.isDay ? building.dayMultiplier : building.nightMultiplier;
+  let label = "Stable";
+  if (multiplier > 1) {
+    label = "Boosted";
+  } else if (multiplier < 1) {
+    label = "Sleeping";
+  }
+
+  return {
+    multiplier,
+    label,
+    text: `${building.name} ${building.icon} ${label} x${formatMultiplier(multiplier)}`,
+  };
 }
 
-function getAutoClicksPerSec() {
-  return state.fairyHelpers;
+function getPlantBaseIncomePerSecond(cycle = getCycleInfo()) {
+  return buildings.reduce((sum, building) => {
+    const count = getBuildingCount(building.key);
+    const multiplier = getBuildingCycleProfile(building, cycle).multiplier;
+    return sum + count * building.baseIncome * multiplier;
+  }, 0);
 }
 
-function getGlowPerSec() {
-  const rawPassive = getBasePassivePerSec();
-  const rawAuto = getAutoClicksPerSec() * state.clickPower;
-  return (rawPassive + rawAuto) * getIncomeMultiplier();
+function getPassiveIncomePerSecond(cycle = getCycleInfo()) {
+  return getPlantBaseIncomePerSecond(cycle) * getIncomeMultiplier();
+}
+
+function getAutoClickIncomePerSecond() {
+  return state.fairyHelpers * getEffectiveClickPower() * getIncomeMultiplier();
+}
+
+function getGlowPerSecond() {
+  return getPassiveIncomePerSecond() + getAutoClickIncomePerSecond();
 }
 
 function getEffectiveClickPower() {
@@ -294,6 +398,13 @@ function unlockAchievements() {
   }
 }
 
+function renderTheme(cycle = getCycleInfo()) {
+  document.body.classList.toggle("day-theme", cycle.isDay);
+  document.body.classList.toggle("night-theme", !cycle.isDay);
+  dom.cycleDisplay.textContent = cycle.label;
+  dom.cycleDisplay.className = cycle.isDay ? "cycle-chip cycle-day" : "cycle-chip cycle-night";
+}
+
 function renderGardenStage() {
   const stage = getGardenStage();
   dom.gardenStageName.textContent = stage.name;
@@ -305,31 +416,38 @@ function renderGardenStage() {
 
 function renderStats() {
   dom.statGlow.textContent = formatAmount(state.glow);
-  dom.statGlowPerSec.textContent = formatAmount(getGlowPerSec());
+  dom.statGlowPerSec.textContent = formatAmount(getGlowPerSecond());
   dom.statClickPower.textContent = formatAmount(getEffectiveClickPower());
   dom.statFairyHelpers.textContent = formatAmount(state.fairyHelpers);
   dom.statStardust.textContent = formatAmount(state.stardust);
 }
 
 function renderWand() {
-  dom.wandCost.textContent = `${formatAmount(getWandCost())} Glow`;
-  dom.wandButton.disabled = state.glow < getWandCost();
+  const cost = getWandCost();
+  dom.wandCost.textContent = `${formatAmount(cost)} Glow`;
+  dom.wandButton.disabled = state.glow < cost;
 }
 
 function renderHelpers() {
-  dom.helperCost.textContent = `${formatAmount(getHelperCost())} Glow`;
+  const cost = getHelperCost();
+  dom.helperCost.textContent = `${formatAmount(cost)} Glow`;
   dom.helperCount.textContent = formatAmount(state.fairyHelpers);
-  dom.helperButton.disabled = state.glow < getHelperCost();
+  dom.helperButton.disabled = state.glow < cost;
 }
 
 function renderBuildings() {
+  const cycle = getCycleInfo();
   for (const building of buildings) {
     const nodes = buildingNodes[building.key];
     const count = getBuildingCount(building.key);
     const cost = getBuildingCost(building);
+    const profile = getBuildingCycleProfile(building, cycle);
+    const perBuildingIncome = building.baseIncome * profile.multiplier;
+
     nodes.count.textContent = `${formatAmount(count)} owned`;
-    nodes.income.textContent = `+${formatAmount(building.income)} Glow/sec`;
+    nodes.income.textContent = `+${formatAmount(perBuildingIncome)} Glow/sec each`;
     nodes.cost.textContent = `${formatAmount(cost)} Glow`;
+    nodes.cycle.textContent = profile.text;
     nodes.button.disabled = state.glow < cost;
     nodes.button.dataset.owned = String(count);
   }
@@ -371,15 +489,31 @@ function renderPrestige() {
   dom.playTimeInfo.textContent = `Play time: ${formatDuration(state.playTime)}. Total earned: ${formatAmount(state.totalGlowEarned)} Glow.`;
 }
 
+function renderOfflineModal() {
+  if (!offlineReward || offlineReward.gained <= 0) {
+    dom.offlineModal.hidden = true;
+    document.body.classList.remove("modal-open");
+    return;
+  }
+
+  dom.offlineGlow.textContent = `Received: ${formatAmount(offlineReward.gained)} Glow`;
+  dom.offlineDuration.textContent = `Away time: ${formatLongDuration(offlineReward.seconds)}`;
+  dom.offlineModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
 function render() {
+  const cycle = getCycleInfo();
+  renderTheme(cycle);
   renderGardenStage();
   renderStats();
   renderWand();
-  renderBuildings();
   renderHelpers();
+  renderBuildings();
   renderAchievements();
   renderLog();
   renderPrestige();
+  renderOfflineModal();
   saveState();
 }
 
@@ -447,15 +581,97 @@ function prestige() {
   render();
 }
 
+function handleCycleTransition(previousCycle, nextCycle) {
+  if (previousCycle === nextCycle) {
+    return;
+  }
+
+  if (nextCycle === "day") {
+    addEvent("☀️ The sun has risen. Sunflowers are boosted.");
+  } else {
+    addEvent("🌙 Night has fallen. Moonflowers are boosted.");
+  }
+}
+
+function getOfflineIncome(startTimestamp, endTimestamp) {
+  let cursor = startTimestamp;
+  let gained = 0;
+  const transitions = [];
+  const startCycle = getCycleInfo(cursor).id;
+
+  while (cursor < endTimestamp) {
+    const boundary = Math.min(endTimestamp, getNextCycleBoundary(cursor));
+    const cycle = getCycleInfo(cursor);
+    const seconds = (boundary - cursor) / 1000;
+    gained += getPassiveIncomePerSecond(cycle) * seconds;
+    cursor = boundary;
+
+    const currentCycle = getCycleInfo(cursor).id;
+    if (currentCycle !== startCycle) {
+      transitions.push(currentCycle);
+      break;
+    }
+  }
+
+  const endCycle = getCycleInfo(endTimestamp).id;
+  if (endCycle !== startCycle && transitions[transitions.length - 1] !== endCycle) {
+    transitions.push(endCycle);
+  }
+
+  return { gained, transitions };
+}
+
+function applyOfflineProgress() {
+  const now = getCurrentTimestamp();
+  const lastPlayedAt = number(state.lastPlayedAt, now);
+  const elapsedMs = Math.max(0, now - lastPlayedAt);
+  const offlineMs = Math.min(elapsedMs, OFFLINE_LIMIT_SECONDS * 1000);
+
+  state.lastPlayedAt = now;
+
+  if (offlineMs <= 0) {
+    return null;
+  }
+
+  const startTimestamp = now - offlineMs;
+  const result = getOfflineIncome(startTimestamp, now);
+  if (result.gained > 0) {
+    addGlow(result.gained);
+  }
+
+  state.playTime += offlineMs / 1000;
+  result.transitions.forEach((cycleId) => handleCycleTransition(cycleId === "day" ? "night" : "day", cycleId));
+
+  return {
+    gained: result.gained,
+    seconds: offlineMs / 1000,
+  };
+}
+
+function showOfflineReward(reward) {
+  offlineReward = reward;
+  renderOfflineModal();
+}
+
+function claimOfflineReward() {
+  offlineReward = null;
+  renderOfflineModal();
+  render();
+}
+
 function tick(now) {
   const deltaSeconds = Math.max(0, (now - lastTick) / 1000);
   lastTick = now;
 
   state.playTime += deltaSeconds;
 
-  const passive = getBasePassivePerSec();
-  const helpers = getAutoClicksPerSec() * state.clickPower;
-  const gained = (passive + helpers) * getIncomeMultiplier() * deltaSeconds;
+  const currentCycle = getCycleInfo();
+  if (currentCycle.id !== lastCycleId) {
+    handleCycleTransition(lastCycleId, currentCycle.id);
+    lastCycleId = currentCycle.id;
+  }
+
+  const gained = getGlowPerSecond() * deltaSeconds;
   if (gained > 0) {
     addGlow(gained);
   }
@@ -472,10 +688,11 @@ function wireBuildingButtons() {
           <div class="shop-card-copy">
             <p class="shop-title">${building.name}</p>
             <p class="shop-desc">${building.description}</p>
+            <p class="shop-cycle" data-cycle="${building.key}"></p>
           </div>
           <div class="shop-card-meta">
             <span class="shop-count" data-count="${building.key}">0 owned</span>
-            <span class="shop-income" data-income="${building.key}">+0 Glow/sec</span>
+            <span class="shop-income" data-income="${building.key}">+0 Glow/sec each</span>
             <span class="shop-cost" data-cost="${building.key}">0 Glow</span>
           </div>
         </button>
@@ -490,6 +707,7 @@ function wireBuildingButtons() {
       count: card.querySelector(`[data-count="${building.key}"]`),
       income: card.querySelector(`[data-income="${building.key}"]`),
       cost: card.querySelector(`[data-cost="${building.key}"]`),
+      cycle: card.querySelector(`[data-cycle="${building.key}"]`),
     };
     card.addEventListener("click", () => purchaseBuilding(building.key));
   }
@@ -539,12 +757,20 @@ function wireButtons() {
   dom.wandButton.addEventListener("click", upgradeWand);
   dom.helperButton.addEventListener("click", hireHelper);
   dom.prestigeButton.addEventListener("click", prestige);
+  dom.offlineClaimButton.addEventListener("click", claimOfflineReward);
 }
 
 wireBuildingButtons();
 wireAchievementCards();
 wireButtons();
+
+const offlineRewardResult = applyOfflineProgress();
 unlockAchievements();
 render();
+
+if (offlineRewardResult && offlineRewardResult.gained > 0) {
+  showOfflineReward(offlineRewardResult);
+}
+
 window.setInterval(() => tick(performance.now()), 1000);
 window.addEventListener("beforeunload", saveState);

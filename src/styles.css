@@ -20,13 +20,25 @@
 }
 
 body {
+  position: relative;
   min-height: 100vh;
   margin: 0;
+  isolation: isolate;
   color: var(--text);
   background:
     radial-gradient(circle at 18% 12%, var(--page-a), transparent 28rem),
     radial-gradient(circle at 82% 18%, var(--page-b), transparent 24rem),
     linear-gradient(135deg, var(--page-c) 0%, #111913 54%, #07100b 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--theme-overlay, transparent);
+  opacity: 0.9;
 }
 
 body.stage-1 {
@@ -53,6 +65,31 @@ body.stage-4 {
   --page-c: #07100c;
 }
 
+body.day-theme {
+  --theme-overlay:
+    radial-gradient(circle at 18% 12%, rgba(255, 226, 138, 0.34), transparent 11rem),
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 225, 0.12), transparent 18rem),
+    radial-gradient(circle at 74% 18%, rgba(255, 236, 165, 0.16), transparent 16rem),
+    radial-gradient(circle at 12% 62%, rgba(255, 255, 255, 0.12) 0 1px, transparent 2px),
+    radial-gradient(circle at 28% 48%, rgba(255, 255, 255, 0.1) 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 34%, rgba(255, 255, 255, 0.09) 0 1px, transparent 2px),
+    radial-gradient(circle at 82% 66%, rgba(255, 255, 255, 0.11) 0 1px, transparent 2px),
+    radial-gradient(circle at 46% 78%, rgba(255, 255, 255, 0.08) 0 1px, transparent 2px);
+}
+
+body.night-theme {
+  --theme-overlay:
+    radial-gradient(circle at 76% 14%, rgba(217, 231, 255, 0.26), transparent 8rem),
+    radial-gradient(circle at 77% 13%, rgba(245, 248, 255, 0.16), transparent 3.5rem),
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.9) 0 1px, transparent 2px),
+    radial-gradient(circle at 24% 28%, rgba(255, 255, 255, 0.78) 0 1px, transparent 2px),
+    radial-gradient(circle at 58% 20%, rgba(255, 255, 255, 0.72) 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 42%, rgba(255, 255, 255, 0.78) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 58%, rgba(255, 255, 255, 0.74) 0 1px, transparent 2px),
+    radial-gradient(circle at 30% 74%, rgba(255, 255, 255, 0.68) 0 1px, transparent 2px),
+    radial-gradient(circle at 12% 82%, rgba(255, 255, 255, 0.65) 0 1px, transparent 2px);
+}
+
 button,
 input,
 textarea,
@@ -70,6 +107,8 @@ button:focus-visible {
 }
 
 .app {
+  position: relative;
+  z-index: 1;
   width: min(1440px, 100%);
   margin: 0 auto;
   padding: 24px;
@@ -81,6 +120,12 @@ button:focus-visible {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.topbar-status {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
 }
 
 .eyebrow {
@@ -108,6 +153,27 @@ h1 {
 .topbar-note {
   margin: 0;
   color: var(--muted);
+}
+
+.cycle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.cycle-day {
+  color: var(--gold);
+}
+
+.cycle-night {
+  color: #c8dcff;
 }
 
 .layout {
@@ -419,6 +485,12 @@ h1 {
   gap: 8px;
 }
 
+.shop-cycle {
+  margin-bottom: 0;
+  color: var(--gold);
+  font-weight: 800;
+}
+
 .shop-title,
 .achievement-name {
   margin-bottom: 0;
@@ -522,6 +594,61 @@ h1 {
   line-height: 1.45;
 }
 
+.offline-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 8, 5, 0.72);
+  backdrop-filter: blur(14px);
+}
+
+.offline-card {
+  width: min(100%, 420px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(10, 16, 12, 0.96);
+  box-shadow: 0 22px 60px var(--shadow);
+}
+
+.offline-card h2 {
+  margin-bottom: 12px;
+  font-size: 1.35rem;
+}
+
+.offline-glow {
+  margin-bottom: 8px;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.offline-duration {
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+
+.offline-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(241, 203, 100, 0.18), rgba(255, 255, 255, 0.06));
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
 .float-text {
   position: absolute;
   color: #fff2a5;
@@ -572,6 +699,10 @@ h1 {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topbar-status {
+    justify-items: start;
   }
 
   .stats-grid {

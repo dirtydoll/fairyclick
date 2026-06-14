@@ -1,6 +1,6 @@
 # Fairy Glow Clicker
 
-A browser-based idle clicker with buildings, fairy helpers, achievements, local saving, garden stages, event logs, and prestige via Stardust.
+A browser-based idle clicker with buildings, fairy helpers, achievements, local saving, garden stages, day and night cycles, event logs, offline rewards, and prestige via Stardust.
 
 ## Run locally
 
@@ -18,5 +18,6 @@ Progress is stored in `localStorage` in the browser.
 - Achievements with stacked income bonuses
 - Stardust prestige after 100,000 total Glow earned
 - Garden stage visuals
+- Local time day and night modifiers
+- Offline progress with an 8 hour cap
 - Last-20 event log
-

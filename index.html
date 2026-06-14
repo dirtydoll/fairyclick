@@ -13,7 +13,10 @@
           <p class="eyebrow">Fairy Glow Clicker</p>
           <h1>Fairy Glow Clicker</h1>
         </div>
-        <p class="topbar-note">Saves locally in your browser.</p>
+        <div class="topbar-status">
+          <p class="topbar-note">Saves locally in your browser.</p>
+          <p class="cycle-chip" id="cycleDisplay">☀️ Day</p>
+        </div>
       </header>
 
       <div class="layout">
@@ -111,6 +114,16 @@
         </aside>
       </div>
     </main>
+
+    <div class="offline-overlay" id="offlineModal" hidden>
+      <section class="offline-card" role="dialog" aria-modal="true" aria-labelledby="offlineTitle">
+        <p class="eyebrow">Offline reward</p>
+        <h2 id="offlineTitle">While you were away</h2>
+        <p class="offline-glow" id="offlineGlow">Received: 0 Glow</p>
+        <p class="offline-duration" id="offlineDuration">Away time: 0 minutes</p>
+        <button id="offlineClaimButton" type="button">Claim</button>
+      </section>
+    </div>
 
     <script src="src/main.js"></script>
   </body>
